@@ -7,13 +7,23 @@ int main(int argc, const char *argv[])
   initVM();
   Chunk chunk;
   initChunk(&chunk);
-  int con = addConstant(&chunk, 1.6);
+  int constant = addConstant(&chunk, 1.6);
   writeChunk(&chunk, OP_CONSTANT, 1);
-  writeChunk(&chunk, con, 1);
-  for (int i = 0; i < 10; i++)
-  {
-    writeConstant(&chunk, 1.3, 123);
-  }
+  writeChunk(&chunk, constant, 1);
+
+  constant = addConstant(&chunk, 3.4);
+  writeChunk(&chunk, OP_CONSTANT, 123);
+  writeChunk(&chunk, constant, 123);
+
+  writeChunk(&chunk, OP_ADD, 123);
+
+  constant = addConstant(&chunk, 5.6);
+  writeChunk(&chunk, OP_CONSTANT, 123);
+  writeChunk(&chunk, constant, 123);
+
+  writeChunk(&chunk, OP_DIVIDE, 123);
+
+  writeChunk(&chunk, OP_NEGATE, 123);
   writeChunk(&chunk, OP_RETURN, 123);
   disassembleChunk(&chunk, "test chunk");
   interpret(&chunk);
