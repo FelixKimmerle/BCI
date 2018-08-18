@@ -61,7 +61,10 @@ static void repl()
       printf("\n");
       break;
     }
-
+    if(line[0] == 'Q')
+    {
+      break;
+    }
     interpret(line);
   }
 }
