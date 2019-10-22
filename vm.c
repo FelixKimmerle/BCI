@@ -73,6 +73,8 @@ static void concatenate()
     memcpy(result->chars + a->length, b->chars, b->length);
     result->chars[length] = '\0';
 
+    UpdateHash(result);
+
     push(OBJ_VAL(result));
 }
 
