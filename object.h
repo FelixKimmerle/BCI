@@ -32,7 +32,7 @@ struct sObjString
 
 ObjString *emptyString(int length);
 ObjString *copyString(const char *chars, int length);
-void UpdateHash(ObjString *str);
+ObjString *UpdateHash(ObjString *str);
 void printObject(Value value);
 static inline bool isObjType(Value value, ObjType type)
 {

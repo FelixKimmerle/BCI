@@ -27,6 +27,8 @@ static ObjString *allocateString(const char *chars, int length, uint32_t hash)
     string->chars[length] = '\0';
     string->hash = hash;
 
+    tableSet(&vm.strings, string, NIL_VAL);
+
     return string;
 }
 
@@ -40,7 +42,6 @@ static uint32_t hashString(const char *key, int length)
         hash *= 16777619;
     }
     return hash;
-    
 }
 
 ObjString *emptyString(int length)
@@ -50,14 +51,25 @@ ObjString *emptyString(int length)
     return string;
 }
 
-void UpdateHash(ObjString *str)
+ObjString * UpdateHash(ObjString *str)
 {
     str->hash = hashString(str->chars, str->length);
+    ObjString *interned = tableFindString(&vm.strings, str->chars, str->length, str->hash);
+    if (interned != NULL)
+    {
+        return interned;
+    }
+    return str;
 }
 
 ObjString *copyString(const char *chars, int length)
 {
     uint32_t hash = hashString(chars, length);
+    ObjString *interned = tableFindString(&vm.strings, chars, length, hash);
+    if (interned != NULL)
+    {
+        return interned;
+    }
     return allocateString(chars, length, hash);
 }
 
