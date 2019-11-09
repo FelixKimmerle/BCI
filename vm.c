@@ -114,11 +114,22 @@ static InterpretResult run()
         uint8_t instruction;
         switch (instruction = READ_BYTE())
         {
-        case OP_RETURN:
+        case OP_PRINT:
         {
             printValue(pop());
             printf("\n");
+            break;
+        }
+        case OP_RETURN:
+        {
+            //printValue(pop());
+            //printf("\n");
             return INTERPRET_OK;
+        }
+        case OP_POP:
+        {
+            pop();
+            break;
         }
         case OP_CONSTANT:
         {
