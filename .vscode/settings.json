@@ -1,6 +1,16 @@
 {
     "files.associations": {
         "type_traits": "cpp",
-        "common.h": "c"
+        "common.h": "c",
+        "optional": "cpp",
+        "istream": "cpp",
+        "ostream": "cpp",
+        "ratio": "cpp",
+        "system_error": "cpp",
+        "array": "cpp",
+        "functional": "cpp",
+        "tuple": "cpp",
+        "utility": "cpp",
+        "*.cuh": "cpp"
     }
 }
