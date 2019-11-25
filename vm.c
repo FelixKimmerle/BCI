@@ -33,11 +33,13 @@ void initVM()
     resetStack();
     vm.objects = NULL;
     initTable(&vm.strings);
+    initTable(&vm.globals);
 }
 
 void freeVM()
 {
     freeTable(&vm.strings);
+    freeTable(&vm.globals);
     freeObjects();
 }
 
@@ -85,6 +87,8 @@ static InterpretResult run()
 #define READ_BYTE() (*vm.ip++)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 #define READ_LONG_CONSTANT() (vm.chunk->constants.values[(READ_BYTE() | (READ_BYTE() << 8))])
+#define READ_STRING() AS_STRING(READ_CONSTANT())
+#define READ_STRING_LONG() AS_STRING(READ_LONG_CONSTANT())
 #define BINARY_OP(valueType, op)                        \
     do                                                  \
     {                                                   \
@@ -205,6 +209,66 @@ static InterpretResult run()
         case OP_NOT:
             push(BOOL_VAL(isFalsey(pop())));
             break;
+        case OP_DEFINE_GLOBAL:
+        {
+            ObjString *name = READ_STRING();
+            tableSet(&vm.globals, OBJ_VAL(name), peek(0));
+            pop();
+            break;
+        }
+        case OP_DEFINE_GLOBAL_LONG:
+        {
+            ObjString *name = READ_STRING_LONG();
+            tableSet(&vm.globals, OBJ_VAL(name), peek(0));
+            pop();
+            break;
+        }
+        case OP_GET_GLOBAL:
+        {
+            ObjString *name = READ_STRING();
+            Value value;
+            if (!tableGet(&vm.globals, OBJ_VAL(name), &value))
+            {
+                runtimeError("Undefined variable '%s'.", name->chars);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            push(value);
+            break;
+        }
+        case OP_GET_GLOBAL_LONG:
+        {
+            ObjString *name = READ_STRING_LONG();
+            Value value;
+            if (!tableGet(&vm.globals, OBJ_VAL(name), &value))
+            {
+                runtimeError("Undefined variable '%s'.", name->chars);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            push(value);
+            break;
+        }
+        case OP_SET_GLOBAL:
+        {
+            ObjString *name = READ_STRING();
+            if (tableSet(&vm.globals, OBJ_VAL(name), peek(0)))
+            {
+                tableDelete(&vm.globals, OBJ_VAL(name));
+                runtimeError("Undefined variable '%s'.", name->chars);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            break;
+        }
+        case OP_SET_GLOBAL_LONG:
+        {
+            ObjString *name = READ_STRING_LONG();
+            if (tableSet(&vm.globals, OBJ_VAL(name), peek(0)))
+            {
+                tableDelete(&vm.globals, OBJ_VAL(name));
+                runtimeError("Undefined variable '%s'.", name->chars);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            break;
+        }
         }
     }
 
@@ -212,6 +276,8 @@ static InterpretResult run()
 #undef READ_CONSTANT
 #undef READ_LONG_CONSTANT
 #undef BINARY_OP
+#undef READ_STRING
+#undef READ_STRING_LONG
 }
 
 InterpretResult interpret(const char *source)

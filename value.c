@@ -30,6 +30,7 @@ uint32_t hashValue(Value value)
     case VAL_EMPTY:
         return 3;
     }
+    return 0;
 }
 
 void initValueArray(ValueArray *array)
@@ -75,6 +76,9 @@ void printValue(Value value)
     case VAL_OBJ:
         printObject(value);
         break;
+    case VAL_EMPTY:
+        printf("[empty]");
+        break;
     }
 }
 
@@ -97,6 +101,8 @@ bool valuesEqual(Value a, Value b)
     {
         return AS_OBJ(a) == AS_OBJ(b);
     }
+    case VAL_EMPTY:
+        return true;
     }
     return false;
 }

@@ -2,7 +2,7 @@
 # Compiler flags
 #
 CC     = gcc
-CFLAGS = -Wall
+CFLAGS = 
 LIBS	= 
 #
 # Project files
@@ -17,7 +17,7 @@ EXE  = cLox
 DBGDIR = debug
 DBGEXE = $(DBGDIR)/$(EXE)
 DBGOBJS = $(addprefix $(DBGDIR)/, $(OBJS))
-DBGCFLAGS = -g -O0 -DDEBUG
+DBGCFLAGS = -g -O0 -ftrapv -Wall -Wextra -Wfloat-equal -Wundef -Wunreachable-code -Wcast-qual -DDEBUG -DDEBUG_PRINT_CODE -DDEBUG_TRACE_EXECUTION
 
 #
 # Release build settings
@@ -25,7 +25,7 @@ DBGCFLAGS = -g -O0 -DDEBUG
 RELDIR = release
 RELEXE = $(RELDIR)/$(EXE)
 RELOBJS = $(addprefix $(RELDIR)/, $(OBJS))
-RELCFLAGS = -O3 -Ofast -DNDEBUG -Werror -Wextra
+RELCFLAGS = -O3 -Ofast -DNDEBUG -Wall -Wextra -Wfloat-equal -Wundef -Wunreachable-code -Wcast-qual
 
 .PHONY: all clean debug prep release remake run rund test
 

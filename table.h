@@ -12,8 +12,8 @@ typedef struct
 
 typedef struct
 {
-    int count;
-    int capacity;
+    unsigned int count;
+    unsigned int capacity;
     Entry *entries;
 } Table;
 

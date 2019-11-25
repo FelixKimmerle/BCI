@@ -39,7 +39,6 @@ void writeChunk(Chunk *chunk, uint8_t byte, int line)
     chunk->code[chunk->count] = byte;
     chunk->count++;
 
-
     if (chunk->linecount != 0 && chunk->lines[chunk->linecount - 1] == line)
     {
         chunk->linecounter[chunk->linecount - 1]++;
@@ -52,7 +51,6 @@ void writeChunk(Chunk *chunk, uint8_t byte, int line)
             chunk->linecapacity = GROW_CAPACITY(oldCapacity);
             chunk->linecounter = GROW_ARRAY(chunk->linecounter, int, oldCapacity, chunk->linecapacity);
             chunk->lines = GROW_ARRAY(chunk->lines, int, oldCapacity, chunk->linecapacity);
-
         }
         chunk->lines[chunk->linecount] = line;
         chunk->linecounter[chunk->linecount] = 1;
@@ -60,6 +58,13 @@ void writeChunk(Chunk *chunk, uint8_t byte, int line)
     }
 }
 
+int addConstant(Chunk *chunk, Value value)
+{
+    writeValueArray(&chunk->constants, value);
+    return chunk->constants.count - 1;
+}
+
+/*
 bool writeConstant(Chunk *chunk, Value value, int line)
 {
     writeValueArray(&chunk->constants, value);
@@ -83,3 +88,28 @@ bool writeConstant(Chunk *chunk, Value value, int line)
         return false;
     }
 }
+
+bool writeGlobal(Chunk *chunk, Value value, int line)
+{
+    writeValueArray(&chunk->constants, value);
+    if (chunk->constants.count <= UINT8_MAX)
+    {
+        writeChunk(chunk, OP_DEFINE_GLOBAL, line);
+        writeChunk(chunk, (chunk->constants.count - 1), line);
+        return true;
+    }
+    else if (chunk->constants.count <= UINT16_MAX)
+    {
+        writeChunk(chunk, OP_DEFINE_GLOBAL, line);
+        uint8_t a = (chunk->constants.count - 1) & 0xFF;
+        uint8_t b = (chunk->constants.count - 1) >> 8;
+        writeChunk(chunk, a, line);
+        writeChunk(chunk, b, line);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+*/

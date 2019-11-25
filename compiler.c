@@ -32,7 +32,7 @@ typedef enum
     PREC_PRIMARY
 } Precedence;
 
-typedef void (*ParseFn)();
+typedef void (*ParseFn)(bool canAssign);
 
 typedef struct
 {
@@ -146,6 +146,11 @@ static void emitReturn()
     emitByte(OP_RETURN);
 }
 
+static int makeConstant(Value value)
+{
+    return addConstant(currentChunk(), value);
+}
+
 static void endCompiler()
 {
     emitReturn();
@@ -160,7 +165,7 @@ static void endCompiler()
 static ParseRule *getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
-static void binary()
+static void binary(bool canAssign)
 {
     // Remember the operator.
     TokenType operatorType = parser.previous.type;
@@ -207,7 +212,7 @@ static void binary()
     }
 }
 
-static void literal()
+static void literal(bool canAssign)
 {
     switch (parser.previous.type)
     {
@@ -234,20 +239,72 @@ static void parsePrecedence(Precedence precedence)
         error("Expect expression.");
         return;
     }
-
-    prefixRule();
+    bool canAssign = precedence <= PREC_ASSIGNMENT;
+    prefixRule(canAssign);
 
     while (precedence <= getRule(parser.current.type)->precedence)
     {
         advance();
         ParseFn infixRule = getRule(parser.previous.type)->infix;
-        infixRule();
+        infixRule(canAssign);
     }
+    if(canAssign && match(TOKEN_EQUAL))
+    {
+        error("Invalid assignment target.");
+        expression();
+    }
+}
+
+static void defineVariable(int global)
+{
+    if (global <= UINT8_MAX)
+    {
+        emitByte(OP_DEFINE_GLOBAL);
+        emitByte((uint8_t)global);
+    }
+    else if (global <= UINT16_MAX)
+    {
+        emitByte(OP_DEFINE_GLOBAL_LONG);
+        uint8_t a = (global - 1) & 0xFF;
+        uint8_t b = (global - 1) >> 8;
+        emitBytes(a, b);
+    }
+    else
+    {
+        error("Too many globals in one chunk.");
+    }
+}
+
+static int identifierConstant(Token *name)
+{
+    return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
+}
+
+static int parseVariable(const char *errorMessage)
+{
+    consume(TOKEN_IDENTIFIER, errorMessage);
+    return identifierConstant(&parser.previous);
 }
 
 static void expression()
 {
     parsePrecedence(PREC_ASSIGNMENT);
+}
+
+static void varDeclaration()
+{
+    int global = parseVariable("Expect variable name.");
+    if (match(TOKEN_EQUAL))
+    {
+        expression();
+    }
+    else
+    {
+        emitByte(OP_NIL);
+    }
+    consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+
+    defineVariable(global);
 }
 
 static void expressionStatement()
@@ -264,9 +321,51 @@ static void printStatement()
     emitByte(OP_PRINT);
 }
 
+static void synchronize()
+{
+    parser.panicMode = false;
+
+    while (parser.current.type != TOKEN_EOF)
+    {
+        if (parser.previous.type == TOKEN_SEMICOLON)
+        {
+            return;
+        }
+
+        switch (parser.current.type)
+        {
+        case TOKEN_CLASS:
+        case TOKEN_FUN:
+        case TOKEN_VAR:
+        case TOKEN_FOR:
+        case TOKEN_IF:
+        case TOKEN_WHILE:
+        case TOKEN_PRINT:
+        case TOKEN_RETURN:
+            return;
+
+        default:;
+        }
+
+        advance();
+    }
+}
+
 static void declaration()
 {
-    statement();
+    if (match(TOKEN_VAR))
+    {
+        varDeclaration();
+    }
+    else
+    {
+        statement();
+    }
+
+    if (parser.panicMode)
+    {
+        synchronize();
+    }
 }
 
 static void statement()
@@ -281,7 +380,7 @@ static void statement()
     }
 }
 
-static void grouping()
+static void grouping(bool canAssign)
 {
     expression();
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
@@ -289,25 +388,81 @@ static void grouping()
 
 static void emitConstant(Value value)
 {
-    if (!writeConstant(currentChunk(), value, parser.previous.line))
+    int constant = makeConstant(value);
+    if (constant <= UINT8_MAX)
+    {
+        emitByte(OP_CONSTANT);
+        emitByte((uint8_t)constant);
+    }
+    else if (constant <= UINT16_MAX)
+    {
+        emitByte(OP_CONSTANT_LONG);
+        uint8_t a = (constant - 1) & 0xFF;
+        uint8_t b = (constant - 1) >> 8;
+        emitBytes(a, b);
+    }
+    else
     {
         error("Too many constants in one chunk.");
     }
 }
 
-static void number()
+static void number(bool canAssign)
 {
     double value = strtod(parser.previous.start, NULL);
     emitConstant(NUMBER_VAL(value));
 }
 
-static void string()
+static void string(bool canAssign)
 {
     emitConstant(OBJ_VAL(copyString(parser.previous.start + 1,
                                     parser.previous.length - 2)));
 }
 
-static void unary()
+static void namedVariable(Token name, bool canAssign)
+{
+    int arg = identifierConstant(&name);
+    if (arg <= UINT8_MAX)
+    {
+        if (canAssign && match(TOKEN_EQUAL))
+        {
+            expression();
+            emitByte(OP_SET_GLOBAL);
+        }
+        else
+        {
+            emitByte(OP_GET_GLOBAL);
+        }
+
+        emitByte((uint8_t)arg);
+    }
+    else if (arg <= UINT16_MAX)
+    {
+        if (canAssign && match(TOKEN_EQUAL))
+        {
+            expression();
+            emitByte(OP_SET_GLOBAL_LONG);
+        }
+        else
+        {
+            emitByte(OP_GET_GLOBAL_LONG);
+        }
+        uint8_t a = (arg - 1) & 0xFF;
+        uint8_t b = (arg - 1) >> 8;
+        emitBytes(a, b);
+    }
+    else
+    {
+        error("Too many constants in one chunk.");
+    }
+}
+
+static void variable(bool canAssign)
+{
+    namedVariable(parser.previous, canAssign);
+}
+
+static void unary(bool canAssign)
 {
     TokenType operatorType = parser.previous.type;
 
@@ -348,7 +503,7 @@ ParseRule rules[] = {
     {NULL, binary, PREC_COMPARISON}, // TOKEN_GREATER_EQUAL
     {NULL, binary, PREC_COMPARISON}, // TOKEN_LESS
     {NULL, binary, PREC_COMPARISON}, // TOKEN_LESS_EQUAL
-    {NULL, NULL, PREC_NONE},         // TOKEN_IDENTIFIER
+    {variable, NULL, PREC_NONE},     // TOKEN_IDENTIFIER
     {string, NULL, PREC_NONE},       // TOKEN_STRING
     {number, NULL, PREC_NONE},       // TOKEN_NUMBER
     {NULL, NULL, PREC_AND},          // TOKEN_AND

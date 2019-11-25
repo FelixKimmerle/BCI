@@ -22,6 +22,12 @@ typedef enum
     OP_NEGATE,
     OP_PRINT,
     OP_POP,
+    OP_DEFINE_GLOBAL,
+    OP_DEFINE_GLOBAL_LONG,
+    OP_GET_GLOBAL,
+    OP_GET_GLOBAL_LONG,
+    OP_SET_GLOBAL,
+    OP_SET_GLOBAL_LONG,
     OP_RETURN,
 } OpCode;
 
@@ -40,7 +46,8 @@ typedef struct
 void initChunk(Chunk *chunk);
 void freeChunk(Chunk *chunk);
 void writeChunk(Chunk *chunk, uint8_t byte, int line);
-bool writeConstant(Chunk *chunk, Value value, int line);
-//int addConstant(Chunk *chunk, Value value);
+int addConstant(Chunk *chunk, Value value);
+//bool writeConstant(Chunk *chunk, Value value, int line);
+//bool writeGlobal(Chunk *chunk, Value value, int line);
 
 #endif
